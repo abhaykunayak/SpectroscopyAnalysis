@@ -49,4 +49,3 @@ browse_fft_slider(X,Y,V,LS,I);
 
 %% Data Analysis Energy Dispersion
 data_analysis(X,Y,Z,V,LS,I);
-

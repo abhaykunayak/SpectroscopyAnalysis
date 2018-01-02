@@ -219,16 +219,16 @@ S.q = pi.*linspace(-1,1,LX).*(1/dX);
 % LS_fft = abs(fftshift(fft(S.LS_cropped, LX,2),2));
 % S.LS_fft = squeeze(mean(LS_fft,1))';
 
-% Fourier window: cos
+% Fourier window: cos 2D
 [M, N, E] = size(S.LS_cropped);
 wm = cos(linspace(-pi/2, pi/2, M));
 wn = cos(linspace(-pi/2, pi/2, N));
 w = repmat(wm.' * wn, [1 1 E]);
 S.LS_cropped = S.LS_cropped.*w;
 
-% Method 3
+% Method 3: 2D FFT and then average over y
 LS_fft2 = abs(fftshift(fftshift(fft2(S.LS_cropped),2),1));
-S.LS_fft = squeeze(mean(LS_fft2,1))';
+S.LS_fft = squeeze(mean(LS_fft2,1)).';
 
 % Remove dc peak
 S.LS_fft = remove_dc(LX, S.LS_fft);

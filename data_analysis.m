@@ -148,7 +148,7 @@ S = subtract_dIdV(S);
 S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
 
 % Derivative of average spectroscopy along Energy
-S.LS_avg_map = diff(S.LS_avg_map, 1, 2);
+% S.LS_avg_map = diff(S.LS_avg_map, 1, 2);
 
 % Smooth average spectroscopy map
 S.LS_avg_map = imgaussfilt(S.LS_avg_map, 2);
@@ -208,20 +208,27 @@ dX = mean(diff(S.X_cropped));
 S.q = pi.*linspace(-1,1,LX).*(1/dX);
 
 % Fourier window: cos
-[M, N] = size(S.LS_avg_map);
-w = repmat(cos(linspace(-pi/2, pi/2, M)).', [1, N]);
-S.LS_avg_map = S.LS_avg_map.*w;
+% [M, N] = size(S.LS_avg_map);
+% w = repmat(cos(linspace(-pi/2, pi/2, M)).', [1, N]);
+% S.LS_avg_map = S.LS_avg_map.*w;
 
 % Method 1: FT of the y averaged spectroscopy map 
-S.LS_fft = abs(fftshift(fft(S.LS_avg_map', LX,2),2));
+% S.LS_fft = abs(fftshift(fft(S.LS_avg_map', LX,2),2));
 
 % Method 2
 % LS_fft = abs(fftshift(fft(S.LS_cropped, LX,2),2));
 % S.LS_fft = squeeze(mean(LS_fft,1))';
 
+% Fourier window: cos
+[M, N, E] = size(S.LS_cropped);
+wm = cos(linspace(-pi/2, pi/2, M));
+wn = cos(linspace(-pi/2, pi/2, N));
+w = repmat(wm.' * wn, [1 1 E]);
+S.LS_cropped = S.LS_cropped.*w;
+
 % Method 3
-% LS_fft2 = abs(fftshift(fftshift(fft2(S.LS_cropped),2),1));
-% S.LS_fft = squeeze(mean(LS_fft2,1))';
+LS_fft2 = abs(fftshift(fftshift(fft2(S.LS_cropped),2),1));
+S.LS_fft = squeeze(mean(LS_fft2,1))';
 
 % Remove dc peak
 S.LS_fft = remove_dc(LX, S.LS_fft);

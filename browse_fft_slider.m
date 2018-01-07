@@ -120,7 +120,7 @@ function [] = slider_call(varargin)
 [h,S] = varargin{[1,3]};  % calling handle and data structure.
 LS_realspace = squeeze(S.LS(:,:,round(get(h,'value'))));
 I_slice = squeeze(S.I(:,:,round(get(h,'value'))));
-LS_realspace = LS_realspace./I_slice;
+% LS_realspace = LS_realspace./I_slice;
 LS_realspace = bsxfun(@minus, LS_realspace, mean(LS_realspace,2));
 LS_realspace = imgaussfilt(bsxfun(@minus, LS_realspace, mean(LS_realspace,2)),1);
 set(S.hi1,'cdata', LS_realspace);

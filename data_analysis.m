@@ -147,11 +147,11 @@ S = subtract_dIdV(S, 'subavg');
 % Average in Y Energy vs X
 S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
 
-% Derivative of average spectroscopy along Energy
+% Derivative of average spectroscopy
 % S.LS_avg_map = diff(S.LS_avg_map, 1, 1);
 
 % Smooth average spectroscopy map
-S.LS_avg_map = imgaussfilt(S.LS_avg_map, 0.5);
+S.LS_avg_map = imgaussfilt(S.LS_avg_map, 1);
 end
 
 function S = normalize_dIdV(S)

@@ -27,6 +27,7 @@ Z = Z*1e9;
 %% Select lines
 lines_selected = [1 2 3];
 LS = LS(lines_selected,:,:);
+I = I(lines_selected,:,:);
 Z = Z(lines_selected,:);
 Y = Y(lines_selected);
 

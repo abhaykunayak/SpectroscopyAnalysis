@@ -142,13 +142,13 @@ function S = calc_avg_map(S)
 S = normalize_dIdV(S);
 
 % Background subtraction
-S = subtract_dIdV(S, 'subavg');
+S = subtract_dIdV(S, 'subsmth');
 
 % Average in Y Energy vs X
 S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
 
 % Derivative of average spectroscopy
-% S.LS_avg_map = diff(S.LS_avg_map, 1, 1);
+% S.LS_avg_map = diff(S.LS_avg_map, 2, 1);
 
 % Smooth average spectroscopy map
 S.LS_avg_map = imgaussfilt(S.LS_avg_map, 1);
@@ -199,6 +199,13 @@ if strcmp(method, 'subavg')
 elseif strcmp(method, 'subavg_reg')
     % Subtract average spectroscopy of a specific featureless region from the map
     S.LS_avg_map = bsxfun(@minus, S.LS_avg_map, squeeze(mean(S.LS(1,200:300,:),2))');
+elseif strcmp(method, 'subsmth')
+    % Subtract smooth spectroscopy
+    for i=1:size(S.LS_cropped,1)
+        for j=1:size(S.LS_cropped,2)
+            S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:))-smooth(squeeze(S.LS_cropped(i,j,:)),50);
+        end
+    end   
 end
 
 end
@@ -237,6 +244,12 @@ S.LS_fft = remove_dc(LX, S.LS_fft);
 
 % Apply logscale
 % S.LS_fft = log(S.LS_fft);
+
+% Derivative
+% S.LS_fft = diff(S.LS_fft, 1, 1);
+
+% Smooth gaussian
+% S.LS_fft = imgaussfilt(S.LS_fft, 2);
 end
 
 function LS_fft = remove_dc(LX, LS_fft)

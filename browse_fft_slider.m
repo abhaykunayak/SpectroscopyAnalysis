@@ -69,10 +69,10 @@ end
 function LS_fft = calculate_fourier(LS)
 % Computes the Fourier transform
 LS_fft = fftshift(fft2(LS, 1.*size(LS,1), 1.*size(LS,2)));
-% LS_fft = abs(LS_fft);
+LS_fft = abs(LS_fft);
 % LS_fft = log(LS_fft);
-LS_fft = angle(LS_fft);
-LS_fft = imgaussfilt(LS_fft, 0.5);
+% LS_fft = angle(LS_fft);
+LS_fft = imgaussfilt(LS_fft, 1);
 
 % Remove dc by interpolation
 dc_index = ceil((size(LS_fft,2)+1)/2);
@@ -134,7 +134,7 @@ title(S.ax1, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' 
 LS_fft = calculate_fourier(squeeze(S.LS_cropped(:,:,round(get(h,'value')))));
 set(S.hi2,'cdata',LS_fft);
 [~, cmax] = color_scale(LS_fft, 3);
-% caxis(S.ax2, [0 cmax]);
+caxis(S.ax2, [0 cmax]);
 title(S.ax2, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' meV'], 'fontsize', 14)
 drawnow;
 

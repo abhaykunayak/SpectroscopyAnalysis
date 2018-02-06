@@ -5,7 +5,7 @@
 %% Load .3ds file
 [FILENAME, PATH] = uigetfile('*.3ds');
 [X, Y, V, Z, DATA, header, ~] = load3dsV([PATH FILENAME]);
-LS = squeeze(DATA(:,:,:,2));  % extracts the average channel of the line spectrum
+LS = squeeze(DATA(:,:,:,3));  % extracts the average channel of the line spectrum
 I = squeeze(DATA(:,:,:,1));  % extracts the average current channel
 
 %% Remove bad sweeps;

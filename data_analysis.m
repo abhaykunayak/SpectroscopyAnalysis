@@ -142,16 +142,16 @@ function S = calc_avg_map(S)
 S = normalize_dIdV(S);
 
 % Background subtraction
-S = subtract_dIdV(S, 'subsmth');
+S = subtract_dIdV(S, 'subavg'); %'subsmth', 'subavg'
 
 % Average in Y Energy vs X
 S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
 
 % Derivative of average spectroscopy
-% S.LS_avg_map = diff(S.LS_avg_map, 2, 1);
+% S.LS_avg_map = diff(S.LS_avg_map, 2, 1).*1e3;
 
 % Smooth average spectroscopy map
-S.LS_avg_map = imgaussfilt(S.LS_avg_map, 1);
+% S.LS_avg_map = imgaussfilt(S.LS_avg_map, 0.1);
 end
 
 function S = normalize_dIdV(S)

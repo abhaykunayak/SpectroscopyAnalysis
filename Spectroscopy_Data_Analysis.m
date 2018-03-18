@@ -5,16 +5,16 @@
 %% Load .3ds file
 [FILENAME, PATH] = uigetfile('*.3ds');
 [X, Y, V, Z, DATA, header, ~] = load3dsV([PATH FILENAME]);
-LS = squeeze(DATA(:,:,:,3));  % extracts the average channel of the line spectrum
+LS = squeeze(DATA(:,:,:,2));  % extracts the average channel of the line spectrum
 I = squeeze(DATA(:,:,:,1));  % extracts the average current channel
 
 %% Remove bad sweeps;
-[LS, I] = remove_bad_sweeps(DATA, 1);
+[LS, I] = remove_bad_sweeps(DATA, 2);
 
 %% Fix data scale
 LS = LS./max(LS(:));
 I = I./max(I(:));
-X = X*1e9;
+X = X*1e9;                      
 Y = Y*1e9;
 Z = Z*1e9;
 
@@ -25,14 +25,14 @@ Z = Z*1e9;
 % LS = LS*scale/dV;
 
 %% Select lines
-lines_selected = [1 2 3];
+lines_selected = [1 2 3 4 5];
 LS = LS(lines_selected,:,:);
 I = I(lines_selected,:,:);
 Z = Z(lines_selected,:);
 Y = Y(lines_selected);
 
 %% Subtract Linear fit
-[Z, slope] = subtract_linear_fit(Z);
+[Z, slope] = subtract_linear_fit(Z);                     
 
 %% Correct Slope
 slope_avg = mean(slope);

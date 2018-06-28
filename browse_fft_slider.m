@@ -13,7 +13,9 @@ S.X = X;
 S.Y = Y;
 S.V = V;
 S.LS = LS;
+S.LS_fft = [];
 S.I = I;
+S.I_cropped = I;
 S.X_cropped = X;
 S.Y_cropped = Y;
 S.LS_cropped = LS;
@@ -38,6 +40,8 @@ S.reset_button = uicontrol('Style', 'pushbutton', 'String', 'RESET',...
 menu_main = uimenu(S.hf1, 'Label', 'Analysis');
 menu_line_profile = uimenu(menu_main, 'Label', 'Line Profile');
 menu_line_profile.Callback = @(hObject, eventData) line_profile_call(hObject, eventData, S);
+menu_energy_profile = uimenu(menu_main, 'Label', 'Energy Profile');
+menu_energy_profile.Callback = @(hObject, eventData) energy_profile(hObject, eventData, S);
 menu_radial_fft = uimenu(menu_main, 'Label', 'Radial FFT');
 menu_radial_fft.Callback = @(hObject, eventData) radial_fft_call(hObject, eventData, S);
 menu_make_video = uimenu(menu_main, 'Label', 'Make Video');
@@ -56,7 +60,8 @@ LS_realspace_slice = squeeze(S.LS(:,:,ii));
 hi1 = imagesc(S.X,S.Y,LS_realspace_slice);
 % axis([S.X(1) S.X(end) S.Y(1) S.Y(end)]);
 axis tight;
-set(gca,'YDir','normal');
+set(ax1, 'YDir', 'normal');
+set(ax1, 'Layer', 'Top');
 colormap(ax1, parula);
 colorbar();
 [cmin, cmax] = color_scale(LS_realspace_slice, 3);
@@ -66,47 +71,27 @@ ylabel('Y (nm)','FontSize',14);
 title(ax1, ['E = ' num2str(S.V(ii)) ' eV'], 'fontsize', 14);
 end
 
-function LS_fft = calculate_fourier(LS)
-% Computes the Fourier transform
-LS_fft = fftshift(fft2(LS, 1.*size(LS,1), 1.*size(LS,2)));
-LS_fft = abs(LS_fft);
-% LS_fft = log(LS_fft);
-% LS_fft = angle(LS_fft);
-% LS_fft = imgaussfilt(LS_fft, 1);
-
-% Remove dc by interpolation
-dc_index = ceil((size(LS_fft,2)+1)/2);
-LS_fft_without_dc = LS_fft;
-LS_fft_without_dc(:,dc_index) = [];
-% interp_dc_value = interp2(LS_fft_without_dc,(dc_index-1)/2,1:size(LS_fft,1), 'nearest');
-% LS_fft(:,dc_index) = interp_dc_value;
-LS_fft = LS_fft_without_dc;
-
-% Symmeterization
-% LS_fft = (LS_fft + imrotate(LS_fft, 120, 'crop') + imrotate(LS_fft, 240, 'crop'))/3;
-end
-
 function [hi2, ax2] = plot_fourier_space(S,ii)
 % Computes the Fourier transform 
-LS_fft = calculate_fourier(squeeze(S.LS(:,:,ii)));
+S.LS_fft = calculate_fourier(squeeze(S.LS(:,:,ii)));
 
 LX = length(S.X);
 dX = mean(diff(S.X));
-q_x = pi.*linspace(-1,1,LX).*(1/dX);
+S.qx = pi.*linspace(-1,1,LX).*(1/dX);
 LY = length(S.Y);
 dY = mean(diff(S.Y));
-q_y = pi.*linspace(-1,1,LY).*(1/dY);
+S.qy = pi.*linspace(-1,1,LY).*(1/dY);
 
 % Plots the FT
 ax2 = S.p(1,2).select();
 ax2.Box = 'on';
-hi2 = imagesc(q_x, q_y, LS_fft);
-% axis([q_x(1) q_x(end) q_y(1) q_y(end)]);
+hi2 = imagesc(S.qx, S.qy, S.LS_fft);
 axis image;
-set(gca,'YDir','normal');
-colormap(ax2, parula);
+set(ax2, 'YDir', 'normal');
+set(ax2, 'Layer', 'Top');
+colormap(ax2, flipud(gray));
 colorbar();
-[cmin, cmax] = color_scale(LS_fft, 3);
+[cmin, cmax] = color_scale(S.LS_fft, 3);
 caxis(ax2, [cmin cmax]);
 xlabel('q_x (nm^{-1})','FontSize',12);
 ylabel('q_y (nm^{-1})','FontSize',12);
@@ -121,24 +106,12 @@ end
 function [] = slider_call(varargin)
 % Callback for the slider.
 [h,S] = varargin{[1,3]};  % calling handle and data structure.
-LS_realspace = squeeze(S.LS(:,:,round(get(h,'value'))));
-I_slice = squeeze(S.I(:,:,round(get(h,'value'))));
-% LS_realspace = LS_realspace./I_slice;
-% LS_realspace = bsxfun(@minus, LS_realspace, mean(LS_realspace,2));
-% LS_realspace = imgaussfilt(LS_realspace,1);
-set(S.hi1,'cdata', LS_realspace);
-[cmin, cmax] = color_scale(LS_realspace, 3);
-caxis(S.ax1, [cmin cmax]);
-title(S.ax1, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' meV'], 'fontsize', 14);
 
-LS_fft = calculate_fourier(squeeze(S.LS_cropped(:,:,round(get(h,'value')))));
-set(S.hi2,'cdata',LS_fft);
-[~, cmax] = color_scale(LS_fft, 3);
-caxis(S.ax2, [0 cmax]);
-title(S.ax2, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' meV'], 'fontsize', 14)
-drawnow;
+% Update realspace spectroscopy
+S = update_realspace(h,S);
 
-assignin('base', 'S', S);
+% Update fourier space spectroscopy
+S = update_fourier_space(h,S);
 
 % Line profile update
 % calls the update function only if the line profile analysis figure is
@@ -154,6 +127,79 @@ if isfield(S.data, 'hi_unfolded_qpi') && ishandle(S.data.hi_unfolded_qpi)
     update_radial_fft(round(get(h,'value')),0,S);
 end
 
+assignin('base', 'S', S);
+end
+
+function LS_realspace = calculate_realspace(LS_realspace, I_slice)
+% Manipulate the realspace
+LS_realspace = LS_realspace./I_slice;
+LS_realspace = bsxfun(@minus, LS_realspace, smooth(mean(LS_realspace,2),50));
+% LS_realspace = diff(LS_realspace,1,1);
+% [FX, FY] = gradient(LS_realspace);
+% LS_realspace = sqrt(FX.^2+FY.^2);
+% LS_realspace = imgaussfilt(LS_realspace, 0.5);
+end
+
+function LS_fft = calculate_fourier(LS)
+% Computes the Fourier transform
+LS_fft = fftshift(fft2(LS, 1.*size(LS,1), 1.*size(LS,2)));
+LS_fft = abs(LS_fft);
+% LS_fft = log2(LS_fft);
+% LS_fft = angle(LS_fft);
+% LS_fft = imgaussfilt(LS_fft, 1);
+
+% Remove dc by interpolation
+dc_index = ceil((size(LS_fft,2)+1)/2);
+LS_fft_without_dc = LS_fft;
+LS_fft_without_dc(:,dc_index) = [];
+% interp_dc_value = interp2(LS_fft_without_dc,(dc_index-1)/2,1:size(LS_fft,1), 'nearest');
+% LS_fft(:,dc_index) = interp_dc_value;
+LS_fft = LS_fft_without_dc;
+
+% Symmeterization
+% T = [1.2 0.08 0;
+%      0 1 0;
+%      0 0 1];
+% tform = affine2d(T);
+% LS_fft = imwarp(LS_fft, tform);
+LS_fft = 0*LS_fft + 1*imrotate(LS_fft, 117, 'crop');
+% LS_fft = (LS_fft + imrotate(LS_fft, 120, 'crop') + imrotate(LS_fft, 240, 'crop'))/3;
+
+end
+
+function S = update_realspace(h,S)
+% Updates the realspace.
+S.LS_realspace = squeeze(S.LS(:,:,round(get(h,'value'))));
+I_slice = squeeze(S.I(:,:,round(get(h,'value'))));
+S.LS_realspace = calculate_realspace(S.LS_realspace, I_slice);
+set(S.hi1,'cdata', S.LS_realspace);
+[cmin, cmax] = color_scale(S.LS_realspace, 3);
+caxis(S.ax1, [cmin cmax]);
+title(S.ax1, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' meV'], 'fontsize', 14);
+end
+
+function S = update_fourier_space(h,S)
+% Updates the fourier space.
+% S.LS_fft = calculate_fourier(squeeze(S.LS_cropped(:,:,round(get(h,'value')))));
+LS_realspace = squeeze(S.LS_cropped(:,:,round(get(h,'value'))));
+I_slice = squeeze(S.I_cropped(:,:,round(get(h,'value'))));
+LS_realspace = calculate_realspace(LS_realspace, I_slice);
+S.LS_fft = calculate_fourier(LS_realspace);
+
+LX = length(S.X_cropped);
+dX = mean(diff(S.X_cropped));
+S.qx = pi.*linspace(-1,1,LX).*(1/dX);
+LY = length(S.Y_cropped);
+dY = mean(diff(S.Y_cropped));
+S.qy = pi.*linspace(-1,1,LY).*(1/dY);
+
+set(S.hi2, 'xdata', S.qx);
+set(S.hi2, 'ydata', S.qy);
+set(S.hi2, 'cdata', S.LS_fft);
+
+[~, cmax] = color_scale(S.LS_fft, 3);
+caxis(S.ax2, [0 cmax]);
+title(S.ax2, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' meV'], 'fontsize', 14)
 end
 
 function [] = crop_button_call(varargin)
@@ -176,6 +222,7 @@ y = find(S.Y>=crop_vector(2) & S.Y<=crop_vector(2)+crop_vector(4));
 S.X_cropped = S.X(x);
 S.Y_cropped = S.Y(y);
 S.LS_cropped = S.LS(y,x,:);
+S.I_cropped = S.I(y,x,:);
 
 slider_call(S.slider,0,S);
 end
@@ -186,6 +233,7 @@ S = varargin{3};  % calling handle and data structure.
 S.X_cropped = S.X;
 S.Y_cropped = S.Y;
 S.LS_cropped = S.LS;
+S.I_cropped = S.I;
 slider_call(S.slider,0,S);
 end
 
@@ -428,15 +476,47 @@ end
 
 function [] = makevideo(varargin)
 S = varargin{3};
-v = VideoWriter('MapMovie.avi');
-v.FrameRate = 1;
-open(v);
+% v = VideoWriter('MapMovie.avi');
+% v.FrameRate = 1;
+% open(v);
 for i = 1:numel(S.V)
     S.slider.Value = i;
     slider_call(S.slider, [], S);
-%     export_fig(S.hf1, sprintf('img/%0.3d.png', round(i)), '-png', '-nocrop', '-transparent', '-q90', '-r100');
-    img = export_fig(S.hf1, '-png', '-nocrop', '-transparent', '-q90', '-r100');
-    writeVideo(v, img);
+    export_fig(S.hf1, sprintf('img/%0.3d.png', round(i)), '-png', '-nocrop', '-transparent', '-q90', '-r100');
+%     img = export_fig(S.hf1, '-png', '-nocrop', '-transparent', '-q90', '-r100');
+%     writeVideo(v, img);
 end
-close(v);
+% close(v);
+end
+
+function [] = energy_profile(varargin)
+% Callback for menu: Energy Profile
+S = varargin{3};
+theta = 0;
+LS_fft_lc = [];
+
+for i = 1:numel(S.V)
+    S.slider.Value = i;
+    slider_call(S.slider, [], S);
+    LS_fft_rot = imrotate(S.LS_fft, theta, 'bicubic', 'crop');
+    LS_fft_lc(i,:) = squeeze(mean(LS_fft_rot(:,124:128),2));
+%     LS_fft_lc(i,:) = squeeze(mean(LS_fft_rot(:,190:198),2));
+end
+
+% Plot the energy profile
+figure;
+ax = axes;
+imagesc(S.qy, S.V*1000, LS_fft_lc);
+set(ax, 'YDir', 'normal');
+set(ax, 'Layer', 'Top');
+colormap(ax, flipud(gray));
+colorbar();
+[~, cmax] = color_scale(LS_fft_lc, 2);
+caxis(ax, [0 cmax]);
+xlabel('q_x (nm^{-1})','FontSize',12);
+ylabel('Energy (meV)','FontSize',12);
+title(ax, ['theta = ', num2str(theta)], 'fontsize', 14);
+
+% Save data to workspace
+S.data = LS_fft_lc;
 end

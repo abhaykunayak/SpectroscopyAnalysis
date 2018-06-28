@@ -6,11 +6,15 @@ classdef SpectroscopyData < handle
         Y;
         V;
         LS;
+        LS_realspace;
+        qx;
+        qy
         I;
         I_cropped;
         X_cropped;
         Y_cropped;
         LS_cropped;
+        LS_fft;
         ctr;
         hi1;
         ax1;

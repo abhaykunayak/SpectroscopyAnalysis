@@ -12,8 +12,8 @@ I = squeeze(DATA(:,:,:,1));  % extracts the average current channel
 [LS, I] = remove_bad_sweeps(DATA, 2);
 
 %% Fix data scale
-LS = LS./max(LS(:));
-I = I./max(I(:));
+LS = LS.*1e9;
+I = I.*1e9;
 X = X*1e9;                      
 Y = Y*1e9;
 Z = Z*1e9;
@@ -39,6 +39,8 @@ slope_avg = mean(slope);
 theta = atand(slope_avg);
 X = X./cosd(theta);
 
+%% 
+X = X./1.1715;
 %% Drift Correction
 [Z, LS] = drift_correct(Z, LS);
 

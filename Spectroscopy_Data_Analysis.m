@@ -25,7 +25,7 @@ Z = Z*1e9;
 % LS = LS*scale/dV;
 
 %% Select lines
-lines_selected = [1 2 3 4 5];
+lines_selected = [1 3 4 5 7 8];
 LS = LS(lines_selected,:,:);
 I = I(lines_selected,:,:);
 Z = Z(lines_selected,:);
@@ -45,7 +45,7 @@ X = X./1.1715;
 [Z, LS] = drift_correct(Z, LS);
 
 %% Plot Topography 
-plot_topography(X,Y,Z);
+plot_topography(X,Y,diff(Z,1,2));
 
 %% Data Analysis Each Energy SLice
 browse_fft_slider(X,Y,V,LS,I);

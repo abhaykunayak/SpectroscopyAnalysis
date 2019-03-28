@@ -132,8 +132,9 @@ end
 
 function LS_realspace = calculate_realspace(LS_realspace, I_slice)
 % Manipulate the realspace
-LS_realspace = LS_realspace./I_slice;
-LS_realspace = bsxfun(@minus, LS_realspace, smooth(mean(LS_realspace,2),50));
+% LS_realspace = LS_realspace./I_slice;
+% LS_realspace = bsxfun(@minus, LS_realspace, smooth(mean(LS_realspace,2),50));
+% LS_realspace = imrotate(LS_realspace, 33, 'bicubic', 'crop');
 % LS_realspace = diff(LS_realspace,1,1);
 % [FX, FY] = gradient(LS_realspace);
 % LS_realspace = sqrt(FX.^2+FY.^2);
@@ -162,15 +163,18 @@ LS_fft = LS_fft_without_dc;
 %      0 0 1];
 % tform = affine2d(T);
 % LS_fft = imwarp(LS_fft, tform);
-LS_fft = 0*LS_fft + 1*imrotate(LS_fft, 117, 'crop');
+% LS_fft = 0*LS_fft + 1*imrotate(LS_fft, 117, 'crop');
 % LS_fft = (LS_fft + imrotate(LS_fft, 120, 'crop') + imrotate(LS_fft, 240, 'crop'))/3;
 
 end
 
 function S = update_realspace(h,S)
 % Updates the realspace.
-S.LS_realspace = squeeze(S.LS(:,:,round(get(h,'value'))));
-I_slice = squeeze(S.I(:,:,round(get(h,'value'))));
+n = round(get(h,'value'));
+% m = n:(n+5);
+m = n;
+S.LS_realspace = squeeze(mean(S.LS(:,:,m),3));
+I_slice = squeeze(mean(S.I(:,:,m),3));
 S.LS_realspace = calculate_realspace(S.LS_realspace, I_slice);
 set(S.hi1,'cdata', S.LS_realspace);
 [cmin, cmax] = color_scale(S.LS_realspace, 3);
@@ -493,30 +497,33 @@ function [] = energy_profile(varargin)
 % Callback for menu: Energy Profile
 S = varargin{3};
 theta = 0;
-LS_fft_lc = [];
+LS_lc = [];
 
 for i = 1:numel(S.V)
     S.slider.Value = i;
     slider_call(S.slider, [], S);
-    LS_fft_rot = imrotate(S.LS_fft, theta, 'bicubic', 'crop');
-    LS_fft_lc(i,:) = squeeze(mean(LS_fft_rot(:,124:128),2));
-%     LS_fft_lc(i,:) = squeeze(mean(LS_fft_rot(:,190:198),2));
+    LS_rot = imrotate(S.LS_fft, theta, 'bicubic', 'crop');
+%     LS_rot = imrotate(S.LS_realspace, theta, 'bicubic', 'crop');
+%     LS_lc(i,:) = squeeze(mean(LS_rot(:,74:76),2));
+    LS_lc(i,:) = squeeze(mean(LS_rot(:,124:128),2));
+%     LS_lc(i,:) = squeeze(mean(LS_rot(124:128,:),1));
+%     LS_lc(i,:) = squeeze(mean(LS_rot(:,190:198),2));
 end
 
 % Plot the energy profile
 figure;
 ax = axes;
-imagesc(S.qy, S.V*1000, LS_fft_lc);
+imagesc(S.qy, S.V*1000, LS_lc);
 set(ax, 'YDir', 'normal');
 set(ax, 'Layer', 'Top');
 colormap(ax, flipud(gray));
 colorbar();
-[~, cmax] = color_scale(LS_fft_lc, 2);
+[~, cmax] = color_scale(LS_lc, 2);
 caxis(ax, [0 cmax]);
 xlabel('q_x (nm^{-1})','FontSize',12);
 ylabel('Energy (meV)','FontSize',12);
 title(ax, ['theta = ', num2str(theta)], 'fontsize', 14);
 
 % Save data to workspace
-S.data = LS_fft_lc;
+S.data = LS_lc;
 end

@@ -163,13 +163,13 @@ function S = normalize_dIdV(S)
 for i=1:size(S.LS_cropped,1)
     S.LS_cropped(i,:,:) = bsxfun(@rdivide, squeeze(S.LS_cropped(i,:,:)), mean(squeeze(S.LS_cropped(i,:,:)),2));
 end
-for i=1:size(S.LS_cropped,1)
-%     S.LS_cropped(i,:,:) = bsxfun(@rdivide, squeeze(S.LS_cropped(i,:,:)), smooth(squeeze(S.I_cropped(i,:,:))./S.V,10));
-    for j=1:size(S.LS_cropped,2)
-        S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./smooth(squeeze(S.I_cropped(i,j,:))./S.V.',10).';
-%         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./abs(S.V);
-    end
-end
+% for i=1:size(S.LS_cropped,1)
+% %     S.LS_cropped(i,:,:) = bsxfun(@rdivide, squeeze(S.LS_cropped(i,:,:)), smooth(squeeze(S.I_cropped(i,:,:))./S.V,10));
+%     for j=1:size(S.LS_cropped,2)
+%         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./smooth(squeeze(S.I_cropped(i,j,:))./S.V.',10).';
+% %         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./abs(S.V);
+%     end
+% end
 
 % Integrate energy from fermi energy to parking bias
 % S.LS_avg_map = bsxfun(@rdivide, S.LS_avg_map, mean(S.LS_avg_map(:,65:128),2));

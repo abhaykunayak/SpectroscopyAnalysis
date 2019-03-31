@@ -240,6 +240,11 @@ S.LS_fft = squeeze(mean(LS_fft,1))';
 % LS_fft2 = abs(fftshift(fftshift(fft2(S.LS_cropped),2),1));
 % S.LS_fft = squeeze(mean(LS_fft2,1)).';
 
+% Phase
+% LS_fft = fftshift(fft(S.LS_cropped, LX,2),2);
+% S.LS_fft = squeeze(mean(LS_fft,1))';
+% S.LS_fft = unwrap(angle(S.LS_fft),2*pi);
+
 % Remove dc peak
 S.LS_fft = remove_dc(LX, S.LS_fft);
 

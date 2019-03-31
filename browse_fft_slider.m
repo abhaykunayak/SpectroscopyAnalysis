@@ -2,12 +2,6 @@ function [] = browse_fft_slider(X,Y,V,LS,I)
 S = SpectroscopyData();
 S.hf1 = figure;
 S.hf1.Position = [2363 292 1146 530];
-S.p = panel();
-S.p.pack(1,2);
-S.p.de.margin = 20;
-S.p.margin = [15 25 10 10]; %left, bottom, right, top
-% S.p.select('all');
-% S.p.identitfy();
 
 S.X = X;
 S.Y = Y;
@@ -54,7 +48,7 @@ end
 
 function [hi1, ax1] = plot_real_space(S,ii)
 % Plots energy slice in real space
-ax1 = S.p(1,1).select();
+ax1 = subplot(1,2,1);
 ax1.Box = 'on';
 LS_realspace_slice = squeeze(S.LS(:,:,ii));
 hi1 = imagesc(S.X,S.Y,LS_realspace_slice);
@@ -83,15 +77,15 @@ dY = mean(diff(S.Y));
 S.qy = pi.*linspace(-1,1,LY).*(1/dY);
 
 % Plots the FT
-ax2 = S.p(1,2).select();
+ax2 = subplot(1,2,2);
 ax2.Box = 'on';
-hi2 = imagesc(S.qx, S.qy, S.LS_fft);
+hi2 = imagesc(S.qx, S.qy, abs(S.LS_fft));
 axis image;
 set(ax2, 'YDir', 'normal');
 set(ax2, 'Layer', 'Top');
 colormap(ax2, flipud(gray));
 colorbar();
-[cmin, cmax] = color_scale(S.LS_fft, 3);
+[cmin, cmax] = color_scale(abs(S.LS_fft), 3);
 caxis(ax2, [cmin cmax]);
 xlabel('q_x (nm^{-1})','FontSize',12);
 ylabel('q_y (nm^{-1})','FontSize',12);
@@ -132,8 +126,8 @@ end
 
 function LS_realspace = calculate_realspace(LS_realspace, I_slice)
 % Manipulate the realspace
-% LS_realspace = LS_realspace./I_slice;
-% LS_realspace = bsxfun(@minus, LS_realspace, smooth(mean(LS_realspace,2),50));
+LS_realspace = LS_realspace./I_slice;
+LS_realspace = bsxfun(@minus, LS_realspace, smooth(mean(LS_realspace,2),50));
 % LS_realspace = imrotate(LS_realspace, 33, 'bicubic', 'crop');
 % LS_realspace = diff(LS_realspace,1,1);
 % [FX, FY] = gradient(LS_realspace);
@@ -144,18 +138,19 @@ end
 function LS_fft = calculate_fourier(LS)
 % Computes the Fourier transform
 LS_fft = fftshift(fft2(LS, 1.*size(LS,1), 1.*size(LS,2)));
-LS_fft = abs(LS_fft);
 % LS_fft = log2(LS_fft);
 % LS_fft = angle(LS_fft);
-% LS_fft = imgaussfilt(LS_fft, 1);
+LS_fft = abs(LS_fft);
+% LS_fft = unwrap(angle(LS_fft),2*pi);
+% LS_fft = imgaussfilt(LS_fft, 0.5);
 
 % Remove dc by interpolation
-dc_index = ceil((size(LS_fft,2)+1)/2);
-LS_fft_without_dc = LS_fft;
-LS_fft_without_dc(:,dc_index) = [];
+% dc_index = ceil((size(LS_fft,2)+1)/2);
+% LS_fft_without_dc = LS_fft;
+% LS_fft_without_dc(:,dc_index) = [];
 % interp_dc_value = interp2(LS_fft_without_dc,(dc_index-1)/2,1:size(LS_fft,1), 'nearest');
 % LS_fft(:,dc_index) = interp_dc_value;
-LS_fft = LS_fft_without_dc;
+% LS_fft = LS_fft_without_dc;
 
 % Symmeterization
 % T = [1.2 0.08 0;
@@ -177,7 +172,7 @@ S.LS_realspace = squeeze(mean(S.LS(:,:,m),3));
 I_slice = squeeze(mean(S.I(:,:,m),3));
 S.LS_realspace = calculate_realspace(S.LS_realspace, I_slice);
 set(S.hi1,'cdata', S.LS_realspace);
-[cmin, cmax] = color_scale(S.LS_realspace, 3);
+[cmin, cmax] = color_scale(S.LS_realspace, 5);
 caxis(S.ax1, [cmin cmax]);
 title(S.ax1, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' meV'], 'fontsize', 14);
 end
@@ -199,10 +194,12 @@ S.qy = pi.*linspace(-1,1,LY).*(1/dY);
 
 set(S.hi2, 'xdata', S.qx);
 set(S.hi2, 'ydata', S.qy);
+% set(S.hi2, 'cdata', abs(S.LS_fft));
 set(S.hi2, 'cdata', S.LS_fft);
 
-[~, cmax] = color_scale(S.LS_fft, 3);
+[~, cmax] = color_scale(abs(S.LS_fft), 3);
 caxis(S.ax2, [0 cmax]);
+% caxis(S.ax2, [-pi pi]);
 title(S.ax2, ['E = ', sprintf('%0.3d',round(S.V(round(get(h,'value')))*1e3)), ' meV'], 'fontsize', 14)
 end
 
@@ -513,7 +510,8 @@ end
 % Plot the energy profile
 figure;
 ax = axes;
-imagesc(S.qy, S.V*1000, LS_lc);
+% imagesc(S.qy, S.V*1000, LS_lc);
+imagesc(S.qy, S.V*1000, LS_lc.*sign(S.qy));
 set(ax, 'YDir', 'normal');
 set(ax, 'Layer', 'Top');
 colormap(ax, flipud(gray));

@@ -102,6 +102,7 @@ function S = initialize_structure(X,Y,Z,V,LS,I)
     S.LS = LS;
     S.LS_cropped = S.LS;
     S.I = I;
+    S.I_cropped = I;
     S.x = 1:length(S.X);
     S.y = 1:length(S.Y);
     
@@ -142,16 +143,16 @@ function S = calc_avg_map(S)
 S = normalize_dIdV(S);
 
 % Background subtraction
-S = subtract_dIdV(S);
+S = subtract_dIdV(S, 'subavg'); %'subsmth', 'subavg'
 
 % Average in Y Energy vs X
 S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
 
-% Derivative of average spectroscopy along Energy
-S.LS_avg_map = diff(S.LS_avg_map, 1, 2);
+% Derivative of average spectroscopy
+% S.LS_avg_map = diff(S.LS_avg_map, 1, 1).*1e3;
 
 % Smooth average spectroscopy map
-S.LS_avg_map = imgaussfilt(S.LS_avg_map, 2);
+% S.LS_avg_map = imgaussfilt(S.LS_avg_map, 1);
 end
 
 function S = normalize_dIdV(S)
@@ -165,7 +166,7 @@ end
 % for i=1:size(S.LS_cropped,1)
 % %     S.LS_cropped(i,:,:) = bsxfun(@rdivide, squeeze(S.LS_cropped(i,:,:)), smooth(squeeze(S.I_cropped(i,:,:))./S.V,10));
 %     for j=1:size(S.LS_cropped,2)
-%         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./smooth(squeeze(S.I_cropped(i,j,:))./S.V.',1).';
+%         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./smooth(squeeze(S.I_cropped(i,j,:))./S.V.',10).';
 % %         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./abs(S.V);
 %     end
 % end
@@ -188,16 +189,25 @@ end
 % end
 end
 
-function S = subtract_dIdV(S)
+function S = subtract_dIdV(S, method)
 % Background subtraction:
 
-% Subtract average spectroscopy from the map
-for i=1:size(S.LS_cropped,1)
-    S.LS_cropped(i,:,:) = bsxfun(@minus, squeeze(S.LS_cropped(i,:,:)), smooth(squeeze(mean(S.LS_cropped(i,:,:),2)),50)');
+if strcmp(method, 'subavg')
+    % Subtract average spectroscopy from the map
+    for i=1:size(S.LS_cropped,1)
+        S.LS_cropped(i,:,:) = bsxfun(@minus, squeeze(S.LS_cropped(i,:,:)), smooth(squeeze(mean(S.LS_cropped(i,:,:),2)),50)');
+    end
+elseif strcmp(method, 'subavg_reg')
+    % Subtract average spectroscopy of a specific featureless region from the map
+    S.LS_avg_map = bsxfun(@minus, S.LS_avg_map, squeeze(mean(S.LS(1,200:300,:),2))');
+elseif strcmp(method, 'subsmth')
+    % Subtract smooth spectroscopy
+    for i=1:size(S.LS_cropped,1)
+        for j=1:size(S.LS_cropped,2)
+            S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:))-smooth(squeeze(S.LS_cropped(i,j,:)),50);
+        end
+    end   
 end
-
-% Subtract average spectroscopy of a specific featureless region from the map
-% S.LS_avg_map = bsxfun(@minus, S.LS_avg_map, squeeze(mean(S.LS(1,200:300,:),2))');
 
 end
 
@@ -207,22 +217,45 @@ LX = length(S.X_cropped);
 dX = mean(diff(S.X_cropped));
 S.q = pi.*linspace(-1,1,LX).*(1/dX);
 
-% Method 1
+% Fourier window: cos
+% [M, N] = size(S.LS_avg_map);
+% w = repmat(cos(linspace(-pi/2, pi/2, M)).', [1, N]);
+% S.LS_avg_map = S.LS_avg_map.*w;
+
+% Method 1: FT of the y averaged spectroscopy map 
 % S.LS_fft = abs(fftshift(fft(S.LS_avg_map', LX,2),2));
 
 % Method 2
-% LS_fft = abs(fftshift(fft(S.LS_cropped, LX,2),2));
-% S.LS_fft = squeeze(mean(LS_fft,1))';
+LS_fft = abs(fftshift(fft(S.LS_cropped, LX,2),2));
+S.LS_fft = squeeze(mean(LS_fft,1))';
 
-% Method 3
-LS_fft2 = abs(fftshift(fftshift(fft2(S.LS_cropped),2),1));
-S.LS_fft = squeeze(mean(LS_fft2,1))';
+% Fourier window: cos 2D
+% [M, N, E] = size(S.LS_cropped);
+% wm = cos(linspace(-pi/2, pi/2, M));
+% wn = cos(linspace(-pi/2, pi/2, N));
+% w = repmat(wm.' * wn, [1 1 E]);
+% S.LS_cropped = S.LS_cropped.*w;
+
+% Method 3: 2D FFT and then average over y
+% LS_fft2 = abs(fftshift(fftshift(fft2(S.LS_cropped),2),1));
+% S.LS_fft = squeeze(mean(LS_fft2,1)).';
+
+% Phase
+% LS_fft = fftshift(fft(S.LS_cropped, LX,2),2);
+% S.LS_fft = squeeze(mean(LS_fft,1))';
+% S.LS_fft = unwrap(angle(S.LS_fft),2*pi);
 
 % Remove dc peak
 S.LS_fft = remove_dc(LX, S.LS_fft);
 
 % Apply logscale
 % S.LS_fft = log(S.LS_fft);
+
+% Derivative
+% S.LS_fft = diff(S.LS_fft, 1, 1);
+
+% Smooth gaussian
+% S.LS_fft = imgaussfilt(S.LS_fft, 2);
 end
 
 function LS_fft = remove_dc(LX, LS_fft)

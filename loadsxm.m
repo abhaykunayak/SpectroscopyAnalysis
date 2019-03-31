@@ -20,11 +20,11 @@ else
 end
  
 % check whether file is a Nanonis data file.
-% s1 = fgetl(fid);
-% if ~strcmp(s1, ':NANONIS_VERSION:')
-%                fprintf('File seems not to be a Nanonis file\n');
-%                return;
-% end
+s1 = fgetl(fid);
+if ~strcmp(s1, ':NANONIS_VERSION:')
+               fprintf('File seems not to be a Nanonis file\n');
+               return;
+end
 % get header
 header.version = str2num(fgetl(fid));
 read_tag = 1;

@@ -5,8 +5,18 @@
 %% Load .3ds file
 [FILENAME, PATH] = uigetfile('*.3ds');
 [X, Y, V, Z, DATA, header, ~] = load3dsV([PATH FILENAME]);
-LS = squeeze(DATA(:,:,:,2));  % extracts the average channel of the line spectrum
-I = squeeze(DATA(:,:,:,1));  % extracts the average current channel
+
+%% Auto load relevant channel
+chs = 1:numel(header.channels);
+% Spectroscopy channel
+LS_ch_no = chs(cellfun(@(x) strcmp(x, 'LIX 1 omega (A)')...
+    |strcmp(x, 'LIX 1 omega [AVG] (A)'),header.channels));
+LS = squeeze(DATA(:,:,:,LS_ch_no));
+
+% Current channel
+I_ch_no = chs(cellfun(@(x) strcmp(x, 'Current (A)')...
+    |strcmp(x, 'Current [AVG] (A)'),header.channels));
+I = squeeze(DATA(:,:,:,I_ch_no));
 
 %% Remove bad sweeps;
 [LS, I] = remove_bad_sweeps(DATA, 2);
@@ -48,7 +58,7 @@ X = X./1.1715;
 plot_topography(X,Y,diff(Z,1,2));
 
 %% Data Analysis Each Energy SLice
-browse_fft_slider(X,Y,V,LS,I);
+browse_fft_slider(X,Y,V,LS,I,Z);
 
 %% Data Analysis Energy Dispersion
 data_analysis(X,Y,Z,V,LS,I);

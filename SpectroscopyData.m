@@ -4,6 +4,7 @@ classdef SpectroscopyData < handle
         p;
         X;
         Y;
+        Z;
         V;
         LS;
         LS_realspace;
@@ -11,10 +12,14 @@ classdef SpectroscopyData < handle
         qy
         I;
         I_cropped;
+        I_slice;
         X_cropped;
         Y_cropped;
+        Z_cropped;
         LS_cropped;
         LS_fft;
+        LS_realspace_cropped;
+        I_slice_cropped;
         ctr;
         hi1;
         ax1;
@@ -22,6 +27,7 @@ classdef SpectroscopyData < handle
         ax2;
         slider;
         crop_button;
+        crop_pos;
         reset_button;
         roi_imrect_handle;
         data;

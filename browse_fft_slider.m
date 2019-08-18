@@ -18,8 +18,11 @@ S.LS_cropped = LS;
 S.Z_cropped = Z;
 S.ctr = 0;
 
-[S.hi1, S.ax1] = plot_real_space(S,1);
-[S.hi2, S.ax2] = plot_fourier_space(S,1);
+try
+    S = plot_real_space(S);
+    S = plot_fourier_space(S);
+catch
+end
 
 S.slider = uicontrol('style','slide',...
                  'min',1,'max',numel(S.V),'val',1,...
@@ -49,26 +52,25 @@ dcm_obj = datacursormode(S.hf1);
 dcm_obj.UpdateFcn = @(hObject, eventData) dcm_update_fcn(hObject, eventData, size(S.hi1.CData), [S.X(1) S.X(end)], [S.Y(1) S.Y(end)]);
 end
 
-function [hi1, ax1] = plot_real_space(S,ii)
+function S = plot_real_space(S)
 % Plots energy slice in real space
-ax1 = subplot(1,2,1);
-ax1.Box = 'on';
+S.ax1 = subplot(1,2,1);
+S.ax1.Box = 'on';
 S = calculate_realspace(S, 1);
-% LS_realspace_slice = squeeze(S.LS(:,:,ii));
-hi1 = imagesc(S.X,S.Y,S.LS_realspace);
+S.hi1 = imagesc(S.X,S.Y,S.LS_realspace);
 axis image;
-set(ax1, 'YDir', 'normal');
-set(ax1, 'Layer', 'Top');
-colormap(ax1, parula);
+set(S.ax1, 'YDir', 'normal');
+set(S.ax1, 'Layer', 'Top');
+colormap(S.ax1, parula);
 colorbar();
 [cmin, cmax] = color_scale(S.LS_realspace, 3);
-caxis(ax1, [cmin cmax]);
+caxis(S.ax1, [cmin cmax]);
 xlabel('X (nm)','FontSize',14);
 ylabel('Y (nm)','FontSize',14);
-title(ax1, ['E = ' num2str(S.V(ii)) ' eV'], 'fontsize', 14);
+title(S.ax1, ['E = ' num2str(S.V(1)) ' eV'], 'fontsize', 14);
 end
 
-function [hi2, ax2] = plot_fourier_space(S,ii)
+function S = plot_fourier_space(S)
 % Computes the Fourier transform 
 S = calculate_fourier(S);
 
@@ -80,19 +82,19 @@ dY = mean(diff(S.Y));
 S.qy = pi.*linspace(-1,1,LY).*(1/dY);
 
 % Plots the FT
-ax2 = subplot(1,2,2);
-ax2.Box = 'on';
-hi2 = imagesc(S.qx, S.qy, abs(S.LS_fft));
+S.ax2 = subplot(1,2,2);
+S.ax2.Box = 'on';
+S.hi2 = imagesc(S.qx, S.qy, abs(S.LS_fft));
 axis image;
-set(ax2, 'YDir', 'normal');
-set(ax2, 'Layer', 'Top');
-colormap(ax2, flipud(gray));
+set(S.ax2, 'YDir', 'normal');
+set(S.ax2, 'Layer', 'Top');
+colormap(S.ax2, flipud(gray));
 colorbar();
 [cmin, cmax] = color_scale(abs(S.LS_fft), 3);
-% caxis(ax2, [cmin cmax]);
+caxis(S.ax2, [cmin cmax]);
 xlabel('q_x (nm^{-1})','FontSize',12);
 ylabel('q_y (nm^{-1})','FontSize',12);
-title(ax2, ['E = ' num2str(S.V(ii)) ' eV'], 'fontsize', 14);
+title(S.ax2, ['E = ' num2str(S.V(1)) ' eV'], 'fontsize', 14);
 end
 %% Create Functions
 function [] = slider_CreateFcn(hObject,eventData,S)
@@ -139,8 +141,8 @@ function S = calculate_realspace(S, m)
 % Manipulate the realspace
 S.LS_realspace = squeeze(mean(S.LS(:,:,m),3));
 S.I_slice = squeeze(mean(S.I(:,:,m),3));
-% S.LS_realspace = S.LS_realspace./S.I_slice;
-S.LS_realspace = bsxfun(@minus, S.LS_realspace, smooth(mean(S.LS_realspace,2),50));
+% S.LS_realspace = tanh(S.LS_realspace./S.I_slice);
+% S.LS_realspace = bsxfun(@minus, S.LS_realspace, smooth(mean(S.LS_realspace,2),50));
 % S.LS_realspace = imrotate(S.LS_realspace, 33, 'bicubic', 'crop');
 % S.LS_realspace = diff(S.LS_realspace,1,1);
 % [FX, FY] = gradient(S.LS_realspace);
@@ -173,7 +175,7 @@ S.LS_fft = abs(S.LS_fft);
 % S.LS_fft = S.LS_fft./Z_fft;
 
 % S.LS_fft = log2(S.LS_fft);
-% S.LS_fft = imgaussfilt(S.LS_fft, 0.5);
+S.LS_fft = imgaussfilt(S.LS_fft, 0.5);
 
 % Remove dc by interpolation
 % dc_index = ceil((size(LS_fft,2)+1)/2);
@@ -227,9 +229,9 @@ set(S.hi2, 'ydata', S.qy);
 set(S.hi2, 'cdata', S.LS_fft);
 
 [cmin, cmax] = color_scale(abs(S.LS_fft), 2);
-caxis(S.ax2, [cmax*0.0 cmax*1.5]);
+% caxis(S.ax2, [cmax*0.2 cmax*1.5]);
 % caxis(S.ax2, [-pi pi]);
-% caxis(S.ax2, 'auto');
+caxis(S.ax2, 'auto');
 title(S.ax2, ['E = ', sprintf('%0.3f',S.V(round(get(h,'value')))*1e3), ' meV'], 'fontsize', 14);
 end
 
@@ -521,7 +523,8 @@ S = varargin{3};
 for i = 1:numel(S.V)
     S.slider.Value = i;
     slider_call(S.slider, [], S);
-    export_fig(S.hf1, sprintf('img/%0.3d.png', round(i)), '-png', '-nocrop', '-transparent', '-q90', '-r100');
+    export_fig(S.hf1, sprintf('img/%0.3d.png', round(i)),...
+        '-png', '-nocrop', '-transparent', '-q90', '-r100');
 %     img = export_fig(S.hf1, '-png', '-nocrop', '-transparent', '-q90', '-r100');
 %     writeVideo(v, img);
 end
@@ -533,8 +536,8 @@ function [] = energy_profile(varargin)
 S = varargin{3};
 figure;
 ax = axes;
-for theta=0:10:180
 % theta = 0;
+for theta=0:10:180
 LS_lc = [];
 
 for i = 1:numel(S.V)
@@ -556,6 +559,7 @@ colormap(ax, flipud(gray));
 colorbar();
 [~, cmax] = color_scale(LS_lc, 2);
 caxis(ax, [cmax*0.1 cmax*1]);
+% caxis(ax, [0 20]);
 xlabel('q_x (nm^{-1})','FontSize',12);
 ylabel('Energy (meV)','FontSize',12);
 title(ax, ['theta = ', num2str(theta)], 'fontsize', 14);

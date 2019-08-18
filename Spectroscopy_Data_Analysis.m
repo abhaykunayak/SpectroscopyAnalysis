@@ -4,13 +4,14 @@
 
 %% Load .3ds file
 [FILENAME, PATH] = uigetfile('*.3ds');
-[X, Y, V, Z, DATA, header, ~] = load3dsV([PATH FILENAME]);
+[X, Y, V, Z, DATA, header, pm] = load3dsV([PATH FILENAME]);
 
 %% Auto load relevant channel
 chs = 1:numel(header.channels);
 % Spectroscopy channel
 LS_ch_no = chs(cellfun(@(x) strcmp(x, 'LIX 1 omega (A)')...
-    |strcmp(x, 'LIX 1 omega [AVG] (A)'),header.channels));
+    |strcmp(x, 'LIX 1 omega [AVG] (A)')...
+    |strcmp(x, 'Input 2 [AVG] (V)'),header.channels));
 LS = squeeze(DATA(:,:,:,LS_ch_no));
 
 % Current channel

@@ -25,6 +25,9 @@ classdef SpectroscopyData < handle
         ax1;
         hi2;
         ax2;
+        hp_avg_ps;
+        ax_avg_ps;
+        hp_eline;
         slider;
         crop_button;
         crop_pos;

@@ -143,10 +143,10 @@ function S = calc_avg_map(S)
 % S = subtract_dIdV(S, 'subavg'); %'subsmth', 'subavg'
 
 % Normalization
-S = normalize_dIdV(S);
+% S = normalize_dIdV(S);
 
 % Background subtraction
-S = subtract_dIdV(S, 'subavg'); %'subsmth', 'subavg', 'subavg_reg'
+% S = subtract_dIdV(S, 'subavg'); %'subsmth', 'subavg', 'subavg_reg'
 
 % Average in Y Energy vs X
 S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
@@ -255,7 +255,7 @@ S.LS_fft = squeeze(mean(LS_fft,1))';
 % S.LS_fft = unwrap(angle(S.LS_fft),2*pi);
 
 % Remove dc peak
-S.LS_fft = remove_dc(LX, S.LS_fft);
+% S.LS_fft = remove_dc(LX, S.LS_fft);
 
 % Apply logscale
 % S.LS_fft = log(S.LS_fft);

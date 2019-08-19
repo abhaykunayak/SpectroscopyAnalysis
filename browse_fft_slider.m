@@ -19,6 +19,7 @@ S.Z_cropped = Z;
 S.ctr = 0;
 
 try
+    S = plot_avg_spectra(S);
     S = plot_real_space(S);
     S = plot_fourier_space(S);
 catch
@@ -52,9 +53,26 @@ dcm_obj = datacursormode(S.hf1);
 dcm_obj.UpdateFcn = @(hObject, eventData) dcm_update_fcn(hObject, eventData, size(S.hi1.CData), [S.X(1) S.X(end)], [S.Y(1) S.Y(end)]);
 end
 
+function S = plot_avg_spectra(S)
+% Plot avg spectra
+S.ax_avg_ps = subplot(1,7,1);
+S.ax_avg_ps.Box = 'on';
+avg_ps = squeeze(mean(mean(S.LS,1),2)).';
+hold(S.ax_avg_ps, 'on');
+S.hp_eline = plot([0 0], [0 max(avg_ps)], '-k');
+S.hp_avg_ps = plot(S.V,avg_ps, 'LineWidth', 2);
+hold(S.ax_avg_ps, 'off');
+axis tight;
+view([-90 90]);
+set(S.ax_avg_ps, 'Layer', 'Top');
+xlabel(S.ax_avg_ps, 'E (meV)','FontSize',14);
+ylabel(S.ax_avg_ps, 'dI/dV (au)','FontSize',14);
+title(S.ax_avg_ps, 'Avg. PS', 'fontsize', 14);
+end
+
 function S = plot_real_space(S)
 % Plots energy slice in real space
-S.ax1 = subplot(1,2,1);
+S.ax1 = subplot(1,7,[2:4]);
 S.ax1.Box = 'on';
 S = calculate_realspace(S, 1);
 S.hi1 = imagesc(S.X,S.Y,S.LS_realspace);
@@ -82,7 +100,7 @@ dY = mean(diff(S.Y));
 S.qy = pi.*linspace(-1,1,LY).*(1/dY);
 
 % Plots the FT
-S.ax2 = subplot(1,2,2);
+S.ax2 = subplot(1,7,[5:7]);
 S.ax2.Box = 'on';
 S.hi2 = imagesc(S.qx, S.qy, abs(S.LS_fft));
 axis image;
@@ -105,6 +123,9 @@ end
 function [] = slider_call(varargin)
 % Callback for the slider.
 [h,S] = varargin{[1,3]};  % calling handle and data structure.
+
+% Update avg spectra
+update_plot_avg_spectra(h,S);
 
 % Update realspace spectroscopy
 S = update_realspace(h,S);
@@ -140,7 +161,7 @@ end
 function S = calculate_realspace(S, m)
 % Manipulate the realspace
 S.LS_realspace = squeeze(mean(S.LS(:,:,m),3));
-S.I_slice = squeeze(mean(S.I(:,:,m),3));
+% S.I_slice = squeeze(mean(S.I(:,:,m),3));
 % S.LS_realspace = tanh(S.LS_realspace./S.I_slice);
 % S.LS_realspace = bsxfun(@minus, S.LS_realspace, smooth(mean(S.LS_realspace,2),50));
 % S.LS_realspace = imrotate(S.LS_realspace, 33, 'bicubic', 'crop');
@@ -175,7 +196,7 @@ S.LS_fft = abs(S.LS_fft);
 % S.LS_fft = S.LS_fft./Z_fft;
 
 % S.LS_fft = log2(S.LS_fft);
-S.LS_fft = imgaussfilt(S.LS_fft, 0.5);
+% S.LS_fft = imgaussfilt(S.LS_fft, 0.5);
 
 % Remove dc by interpolation
 % dc_index = ceil((size(LS_fft,2)+1)/2);
@@ -194,6 +215,12 @@ S.LS_fft = imgaussfilt(S.LS_fft, 0.5);
 % LS_fft = 0*LS_fft + 1*imrotate(LS_fft, 117, 'crop');
 % LS_fft = (LS_fft + imrotate(LS_fft, 120, 'crop') + imrotate(LS_fft, 240, 'crop'))/3;
 
+end
+
+function [] = update_plot_avg_spectra(h,S)
+% Updates the realspace.
+n = round(get(h,'value'));
+set(S.hp_eline,'xdata', [S.V(n) S.V(n)]);
 end
 
 function S = update_realspace(h,S)
@@ -229,9 +256,9 @@ set(S.hi2, 'ydata', S.qy);
 set(S.hi2, 'cdata', S.LS_fft);
 
 [cmin, cmax] = color_scale(abs(S.LS_fft), 2);
-% caxis(S.ax2, [cmax*0.2 cmax*1.5]);
+caxis(S.ax2, [cmax*0.0 cmax*1.2]);
 % caxis(S.ax2, [-pi pi]);
-caxis(S.ax2, 'auto');
+% caxis(S.ax2, 'auto');
 title(S.ax2, ['E = ', sprintf('%0.3f',S.V(round(get(h,'value')))*1e3), ' meV'], 'fontsize', 14);
 end
 

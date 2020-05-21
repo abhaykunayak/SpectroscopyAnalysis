@@ -75,6 +75,23 @@ colorbar();
 [~, cmax] = color_scale(S.LS_fft, 3);
 caxis(S.energy_q_axes, [0 cmax]);
 
+%% Plot FFT Phase: Energy vs q
+fig_fft_phase = figure('Position', [1170 80 600 400]);
+S.energy_q_axes_phase = axes;
+S.energy_q_im_phase = imagesc(S.q, S.V, S.LS_fft_phase);
+xlabel('q_{x} (nm^{-1})');
+ylabel('E (eV)');
+title('FFT Phase');
+axis tight;
+set(S.energy_q_axes_phase, 'YDir', 'normal');
+colormap();
+colorbar();
+caxis(S.energy_q_axes_phase, [-pi pi]);
+S.energy_q_axes_phase.UserData = S.LS_fft_phase;
+
+%% Link axes
+linkaxes([S.energy_q_axes, S.energy_q_axes_phase],'xy');
+
 %% Align figure windows
 iptwindowalign(fig_topo, 'right', fig_ps, 'left');
 iptwindowalign(fig_topo, 'bottom', fig_qpi, 'top');
@@ -139,11 +156,14 @@ end
 
 %% Calculate Functions 
 function S = calc_avg_map(S)
+% Background subtraction 1st
+% S = subtract_dIdV(S, 'subsmth'); %'subsmth', 'subavg'
+
 % Normalization
-S = normalize_dIdV(S);
+% S = normalize_dIdV(S);
 
 % Background subtraction
-S = subtract_dIdV(S, 'subavg'); %'subsmth', 'subavg'
+% S = subtract_dIdV(S, 'subavg'); %'subsmth', 'subavg', 'subavg_reg'
 
 % Average in Y Energy vs X
 S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
@@ -152,24 +172,21 @@ S.LS_avg_map = squeeze(mean(S.LS_cropped,1));
 % S.LS_avg_map = diff(S.LS_avg_map, 1, 1).*1e3;
 
 % Smooth average spectroscopy map
-% S.LS_avg_map = imgaussfilt(S.LS_avg_map, 1);
+% S.LS_avg_map = imgaussfilt(S.LS_avg_map, 0.5);
+
 end
 
 function S = normalize_dIdV(S)
 % Normalization: Divide QPI by an energy integrated spectrum
-
-% Integrate all energy
 % S.LS_avg_map = bsxfun(@rdivide, S.LS_avg_map, mean(S.LS_avg_map,2));
+
+% Divide by something
 for i=1:size(S.LS_cropped,1)
     S.LS_cropped(i,:,:) = bsxfun(@rdivide, squeeze(S.LS_cropped(i,:,:)), mean(squeeze(S.LS_cropped(i,:,:)),2));
+%     S.LS_cropped(i,:,:) = bsxfun(@rdivide, squeeze(S.LS_cropped(i,:,:)), squeeze(S.I_cropped(i,:,1)).');
+%     S.LS_cropped(i,:,:) = squeeze(S.LS_cropped(i,:,:)./S.I_cropped(i,:,:));
+%     S.LS_cropped(i,:,:) = squeeze(S.LS_cropped(i,:,:)./smoothdata(S.I_cropped(i,:,:),3,'movmean',100));
 end
-% for i=1:size(S.LS_cropped,1)
-% %     S.LS_cropped(i,:,:) = bsxfun(@rdivide, squeeze(S.LS_cropped(i,:,:)), smooth(squeeze(S.I_cropped(i,:,:))./S.V,10));
-%     for j=1:size(S.LS_cropped,2)
-%         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./smooth(squeeze(S.I_cropped(i,j,:))./S.V.',10).';
-% %         S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:)).'./abs(S.V);
-%     end
-% end
 
 % Integrate energy from fermi energy to parking bias
 % S.LS_avg_map = bsxfun(@rdivide, S.LS_avg_map, mean(S.LS_avg_map(:,65:128),2));
@@ -178,9 +195,7 @@ end
 % end
 
 % Integrate energy in a given range
-% length_V = length(S.V);
-% % norm_en_range = 10:20;
-% norm_en_range = (length_V-15):(length_V-5);
+% norm_en_range = 90:150;
 % asymp_value = squeeze(mean(mean(S.LS_cropped(:,end-5:end,norm_en_range),2),3));
 % no_norm_value = squeeze(mean(S.LS_cropped(:,:,norm_en_range),3));
 % norm_factor = asymp_value./no_norm_value;
@@ -191,24 +206,28 @@ end
 
 function S = subtract_dIdV(S, method)
 % Background subtraction:
-
+bkg_signal = 0;
 if strcmp(method, 'subavg')
     % Subtract average spectroscopy from the map
     for i=1:size(S.LS_cropped,1)
-        S.LS_cropped(i,:,:) = bsxfun(@minus, squeeze(S.LS_cropped(i,:,:)), smooth(squeeze(mean(S.LS_cropped(i,:,:),2)),50)');
+        bkg_signal = squeeze(mean(S.LS_cropped(i,:,:),2))';
+        S.LS_cropped(i,:,:) = bsxfun(@minus, squeeze(S.LS_cropped(i,:,:)), bkg_signal);
     end
 elseif strcmp(method, 'subavg_reg')
     % Subtract average spectroscopy of a specific featureless region from the map
-    S.LS_avg_map = bsxfun(@minus, S.LS_avg_map, squeeze(mean(S.LS(1,200:300,:),2))');
+    for i=1:size(S.LS_cropped,1)
+        bkg_signal = squeeze(mean(S.LS_cropped(i,150:250,:),2))';
+        S.LS_cropped(i,:,:) = bsxfun(@minus, squeeze(S.LS_cropped(i,:,:)), bkg_signal);
+    end
 elseif strcmp(method, 'subsmth')
     % Subtract smooth spectroscopy
     for i=1:size(S.LS_cropped,1)
-        for j=1:size(S.LS_cropped,2)
-            S.LS_cropped(i,j,:) = squeeze(S.LS_cropped(i,j,:))-smooth(squeeze(S.LS_cropped(i,j,:)),50);
-        end
+        bkg_signal = smooth(squeeze(mean(S.LS_cropped(i,:,:),2)), 50, 'moving')';
+%         bkg_signal = smoothdata(squeeze(S.LS_cropped(i,:,:)), 2, 'movmean', 50); % 'movmean', 'rloess'
+        S.LS_cropped(i,:,:) = squeeze(S.LS_cropped(i,:,:))-bkg_signal;
     end   
 end
-
+S.data.bkg_signal = bkg_signal;
 end
 
 function S = calc_fft(S)
@@ -226,8 +245,8 @@ S.q = pi.*linspace(-1,1,LX).*(1/dX);
 % S.LS_fft = abs(fftshift(fft(S.LS_avg_map', LX,2),2));
 
 % Method 2
-LS_fft = abs(fftshift(fft(S.LS_cropped, LX,2),2));
-S.LS_fft = squeeze(mean(LS_fft,1))';
+S.LS_fft_com = fftshift(fft(S.LS_cropped, LX,2),2);
+S.LS_fft = squeeze(mean(abs(S.LS_fft_com),1)).';
 
 % Fourier window: cos 2D
 % [M, N, E] = size(S.LS_cropped);
@@ -237,25 +256,29 @@ S.LS_fft = squeeze(mean(LS_fft,1))';
 % S.LS_cropped = S.LS_cropped.*w;
 
 % Method 3: 2D FFT and then average over y
-% LS_fft2 = abs(fftshift(fftshift(fft2(S.LS_cropped),2),1));
-% S.LS_fft = squeeze(mean(LS_fft2,1)).';
+% LS_fft2 = fftshift(fftshift(fft2(S.LS_cropped),2),1);
+% S.LS_fft = abs(squeeze(mean(LS_fft2(20:30,:,:),1)).');
 
 % Phase
-% LS_fft = fftshift(fft(S.LS_cropped, LX,2),2);
-% S.LS_fft = squeeze(mean(LS_fft,1))';
-% S.LS_fft = unwrap(angle(S.LS_fft),2*pi);
+% LS_fft_phase = fftshift(fft(S.LS_cropped, LX,2),2);
+S.LS_fft_phase = squeeze(mean(S.LS_fft_com,1))';
+S.LS_fft_phase = unwrap(angle(S.LS_fft_phase),2*pi);
 
 % Remove dc peak
-S.LS_fft = remove_dc(LX, S.LS_fft);
+% S.LS_fft = remove_dc(LX, S.LS_fft);
+S.LS_fft(:,floor(LX/2)+1) = nan;
 
 % Apply logscale
-% S.LS_fft = log(S.LS_fft);
+% S.LS_fft = log(abs(S.LS_fft+1));
 
 % Derivative
-% S.LS_fft = diff(S.LS_fft, 1, 1);
+% S.LS_fft = diff(S.LS_fft, 2, 1);
 
 % Smooth gaussian
-% S.LS_fft = imgaussfilt(S.LS_fft, 2);
+% S.LS_fft = imgaussfilt(S.LS_fft.', 0.20);
+
+% Save FFT mag data in phase fig
+S.energy_q_axes_phase.UserData = S.LS_fft;
 end
 
 function LS_fft = remove_dc(LX, LS_fft)
@@ -280,7 +303,8 @@ S.LS_avg_cropped = squeeze(mean(mean(S.LS_cropped,2),1));
 % Update Plot
 set(S.point_spectroscopy_plot, 'XData', S.V);
 set(S.point_spectroscopy_plot, 'YData', S.LS_avg_cropped);
-title(S.point_spectroscopy_axes, ['Average Point Spectroscopy: Rows #', num2str(S.y(1)), '-', num2str(S.y(end))]);
+title(S.point_spectroscopy_axes, ['Average Point Spectroscopy: Rows #',...
+    num2str(S.y(1)), '-', num2str(S.y(end))]);
 end
 
 function [] = update_avg_spectroscopy_map(S)
@@ -288,15 +312,22 @@ function [] = update_avg_spectroscopy_map(S)
 set(S.energy_x_im, 'XData', S.X_cropped);
 set(S.energy_x_im, 'YData', S.V);
 set(S.energy_x_im, 'CData', S.LS_avg_map');
-[cmin, cmax] = color_scale(S.LS_avg_map, 3);
-caxis(S.energy_x_axes, [cmin/2 cmax/2]);
+[cmin, cmax] = color_scale(S.LS_avg_map, 2);
+% caxis(S.energy_x_axes, [cmin cmax]);
+title(S.energy_x_axes, ['Average QPI: Rows #',...
+    num2str(S.y(1)), '-', num2str(S.y(end))]);
 end
 
 function [] = update_fft(S)
-% Update Plot
+% Update FFT magnitude
 set(S.energy_q_im, 'XData', S.q);
 set(S.energy_q_im, 'YData', S.V);
 set(S.energy_q_im, 'CData', S.LS_fft);
-[~, cmax] = color_scale(S.LS_fft, 3);
-caxis(S.energy_q_axes, [0 cmax]);
+[cmin, cmax] = color_scale(S.LS_fft, 3);
+% caxis(S.energy_q_axes, [0 cmax]);
+
+%Update FFT phase
+set(S.energy_q_im_phase, 'XData', S.q);
+set(S.energy_q_im_phase, 'YData', S.V);
+set(S.energy_q_im_phase, 'CData', S.LS_fft_phase);
 end

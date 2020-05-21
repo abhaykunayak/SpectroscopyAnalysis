@@ -1,7 +1,7 @@
 function [] = browse_fft_slider(X,Y,V,LS,I,Z)
 S = SpectroscopyData();
 S.hf1 = figure;
-S.hf1.Position = [2363 292 1146 530];
+% S.hf1.Position = [2363 292 1146 530];
 
 S.X = X;
 S.Y = Y;
@@ -47,6 +47,12 @@ menu_radial_fft = uimenu(menu_main, 'Label', 'Radial FFT');
 menu_radial_fft.Callback = @(hObject, eventData) radial_fft_call(hObject, eventData, S);
 menu_make_video = uimenu(menu_main, 'Label', 'Make Video');
 menu_make_video.Callback = @(hObject, eventData) makevideo(hObject, eventData, S);
+menu_hist = uimenu(menu_main, 'Label', 'Histogram');
+menu_hist.Callback = @(hObject, eventData) plot_distribution(hObject, eventData, S);
+menu_cluster = uimenu(menu_main, 'Label', 'Cluster');
+menu_cluster.Callback = @(hObject, eventData) plot_cluster(hObject, eventData, S);
+menu_qcut = uimenu(menu_main, 'Label', 'q Cut');
+menu_qcut.Callback = @(hObject, eventData) plot_qcut(hObject, eventData, S);
 
 % Update custom datatip
 dcm_obj = datacursormode(S.hf1);
@@ -161,27 +167,32 @@ end
 function S = calculate_realspace(S, m)
 % Manipulate the realspace
 S.LS_realspace = squeeze(mean(S.LS(:,:,m),3));
+% S.LS_realspace = squeeze(mean(S.LS(:,:,m)-S.LS(:,:,3),3));
 % S.I_slice = squeeze(mean(S.I(:,:,m),3));
+% S.LS_realspace = S.LS_realspace./S.I_slice;
 % S.LS_realspace = tanh(S.LS_realspace./S.I_slice);
 % S.LS_realspace = bsxfun(@minus, S.LS_realspace, smooth(mean(S.LS_realspace,2),50));
-% S.LS_realspace = imrotate(S.LS_realspace, 33, 'bicubic', 'crop');
+% S.LS_realspace = S.LS_realspace-mean(S.LS_realspace(:), 'omitnan');
+% S.LS_realspace = S.LS_realspace./max(S.LS_realspace(:));
+% % S.LS_realspace = imrotate(S.LS_realspace, 33, 'bicubic', 'crop');
 % S.LS_realspace = diff(S.LS_realspace,1,1);
 % [FX, FY] = gradient(S.LS_realspace);
 % S.LS_realspace = sqrt(FX.^2+FY.^2);
-% S.LS_realspace = imgaussfilt(S.LS_realspace, 0.5);
+% S.LS_realspace = imgaussfilt(S.LS_realspace,0.5);
+% S.LS_realspace(S.LS_realspace<0) = NaN;
 end
 
 function S = calculate_fourier(S)
 % Computes the Fourier transform
-% LS_slice = imgaussfilt(S.LS_realspace, 10);
+% LS_slice = S.LS_realspace;
+% LS_slice = imgaussfilt(S.LS_realspace, 1);
 LS_slice = S.LS_realspace_cropped;
 LS_slice_sz = size(LS_slice);
-wt1 = tukeywin(LS_slice_sz(1),0.3);
-wt2 = tukeywin(LS_slice_sz(2),0.3);
-LS_slice = LS_slice.*(wt1*wt2');
+% wt1 = tukeywin(LS_slice_sz(1),0.3);
+% wt2 = tukeywin(LS_slice_sz(2),0.3);
+% LS_slice = LS_slice.*(wt1*wt2');
 S.LS_fft = fftshift(fft2(LS_slice,...
     1.*LS_slice_sz(1), 1.*LS_slice_sz(2)));
-% S.LS_fft = angle(S.LS_fft);
 % S.LS_fft = unwrap(angle(S.LS_fft),2*pi);
 S.LS_fft = abs(S.LS_fft);
 
@@ -195,16 +206,16 @@ S.LS_fft = abs(S.LS_fft);
 % Z_fft = imgaussfilt(Z_fft, 0.5);
 % S.LS_fft = S.LS_fft./Z_fft;
 
-% S.LS_fft = log2(S.LS_fft);
-% S.LS_fft = imgaussfilt(S.LS_fft, 0.5);
+% S.LS_fft = log2(abs(S.LS_fft));
+% S.LS_fft = imgaussfilt(abs(S.LS_fft), 0.25);
 
 % Remove dc by interpolation
-% dc_index = ceil((size(LS_fft,2)+1)/2);
-% LS_fft_without_dc = LS_fft;
-% LS_fft_without_dc(:,dc_index) = [];
-% interp_dc_value = interp2(LS_fft_without_dc,(dc_index-1)/2,1:size(LS_fft,1), 'nearest');
-% LS_fft(:,dc_index) = interp_dc_value;
-% LS_fft = LS_fft_without_dc;
+% dc_index = ceil((size(S.LS_fft,2)+1)/2);
+% LS_fft_without_dc = S.LS_fft;
+% LS_fft_without_dc(dc_index,dc_index) = nan;
+% interp_dc_value = interp2(LS_fft_without_dc,(dc_index-1)/2,(dc_index-1)/2, 'linear');
+% S.LS_fft(dc_index,dc_index) = interp_dc_value;
+% S.LS_fft = LS_fft_without_dc;
 
 % Symmeterization
 % T = [1.2 0.08 0;
@@ -252,11 +263,11 @@ S.qy = pi.*linspace(-1,1,LY).*(1/dY);
 
 set(S.hi2, 'xdata', S.qx);
 set(S.hi2, 'ydata', S.qy);
-% set(S.hi2, 'cdata', abs(S.LS_fft));
-set(S.hi2, 'cdata', S.LS_fft);
+set(S.hi2, 'cdata', S.LS_fft.');
 
 [cmin, cmax] = color_scale(abs(S.LS_fft), 2);
-caxis(S.ax2, [cmax*0.0 cmax*1.2]);
+caxis(S.ax2, [cmin*0.0 cmax*1.0]);
+% caxis(S.ax2, [10 20]);
 % caxis(S.ax2, [-pi pi]);
 % caxis(S.ax2, 'auto');
 title(S.ax2, ['E = ', sprintf('%0.3f',S.V(round(get(h,'value')))*1e3), ' meV'], 'fontsize', 14);
@@ -544,18 +555,18 @@ end
 
 function [] = makevideo(varargin)
 S = varargin{3};
-% v = VideoWriter('MapMovie.avi');
-% v.FrameRate = 1;
-% open(v);
+v = VideoWriter('MapMovie.avi');
+v.FrameRate = 3;
+open(v);
 for i = 1:numel(S.V)
     S.slider.Value = i;
     slider_call(S.slider, [], S);
-    export_fig(S.hf1, sprintf('img/%0.3d.png', round(i)),...
-        '-png', '-nocrop', '-transparent', '-q90', '-r100');
-%     img = export_fig(S.hf1, '-png', '-nocrop', '-transparent', '-q90', '-r100');
-%     writeVideo(v, img);
+%     export_fig(S.hf1, sprintf('img/%0.3d.png', round(i)),...
+%         '-png', '-nocrop', '-transparent', '-q90', '-r100');
+    img = export_fig(S.hf1, '-png', '-nocrop', '-transparent', '-q90', '-r100');
+    writeVideo(v, img);
 end
-% close(v);
+close(v);
 end
 
 function [] = energy_profile(varargin)
@@ -564,6 +575,7 @@ S = varargin{3};
 figure;
 ax = axes;
 % theta = 0;
+ctr = 1;
 for theta=0:10:180
 LS_lc = [];
 
@@ -574,6 +586,11 @@ for i = 1:numel(S.V)
     sz_lc = size(LS_rot);
     xidx = round(sz_lc(1)/2)+[-1:1];
     LS_lc(i,:) = squeeze(mean(LS_rot(xidx,:),1));
+%     LS_lc(i,:) = squeeze(mean(LS_rot(xidx,:),1))+...
+%         squeeze(mean(LS_rot(:,xidx),2)).';
+%     yidx = round(sz_lc(2)/2)+[-1:1];
+%     LS_lc(i,:) = squeeze(mean(LS_rot(:,yidx),2)).';
+%     LS_lc(i,:) = LS_lc(i,:)./mean(LS_lc(i,1:20)); 
 end
 
 % Plot the energy profile
@@ -590,9 +607,11 @@ caxis(ax, [cmax*0.1 cmax*1]);
 xlabel('q_x (nm^{-1})','FontSize',12);
 ylabel('Energy (meV)','FontSize',12);
 title(ax, ['theta = ', num2str(theta)], 'fontsize', 14);
+xlim([-10 10]);
 
 % Save data to workspace
-S.data = LS_lc;
+S.data(ctr,:,:) = LS_lc;
+ctr = ctr+1;
 pause;
 end
 
@@ -615,4 +634,85 @@ end
 % end
 % assignin('base', 'p', p);
 
+end
+
+function [] = plot_distribution(varargin)
+% Callback for menu: Plot Distribution
+S = varargin{3};
+fig = figure;
+ax = axes;
+
+hh = histogram(S.LS_realspace, 100);
+hh.Behavior.linked.YDataSource = 'S.LS_realspace';
+linkdata('on');
+end
+
+function [] = plot_cluster(varargin)
+% Callback for menu: Cluster
+% ref to yotam's Map_Cluster_L1.m
+
+S = varargin{3};
+num_clusters = 3;
+cc = parula(num_clusters);
+
+% k-means clustering
+[sx, sy, sv] = size(S.LS);
+% LS_2d = reshape(S.LS,[], sv);
+% LS_2d = reshape(S.LS./S.I(:,:,1),[], sv);
+LS_2d = smoothdata(reshape(S.LS./S.I(:,:,1),[], sv),2,'sgolay',10);
+idx = kmeans(LS_2d, num_clusters, 'Replicates', 5,...
+    'Distance', 'sqeuclidean');
+for i = 1:num_clusters
+    cluster_ps(i).ps = LS_2d(idx==i,:);
+    cluster_ps(i).avg_ps = mean(cluster_ps(i).ps, 1);
+    cluster_ps(i).std_ps = std(cluster_ps(i).ps, [], 1);
+end
+
+idx_img = reshape(idx, sx, sy);
+
+% Plot clusters
+figure;
+ax_clustered_ps = subplot(1,2,1);
+hold on;
+for i = 1:num_clusters
+scatter(ax_clustered_ps, reshape(repmat(S.V, size(cluster_ps(i).ps,1),1),[],1), ...
+    reshape(cluster_ps(i).ps,[],1), 'Marker', '.', 'MarkerFaceColor', cc(i,:), ...
+    'MarkerFaceAlpha', 0.01, 'MarkerEdgeColor', cc(i,:), 'MarkerEdgeAlpha', 0.02);
+end
+for i = 1:num_clusters
+plot(ax_clustered_ps, S.V, cluster_ps(i).avg_ps-cluster_ps(i).std_ps, ...
+    'LineStyle', ':', 'LineWidth', 1, 'Color', cc(i,:));
+plot(ax_clustered_ps, S.V, cluster_ps(i).avg_ps+cluster_ps(i).std_ps, ...
+    'LineStyle', ':', 'LineWidth', 1, 'Color', cc(i,:));
+plot(ax_clustered_ps, S.V, cluster_ps(i).avg_ps, 'LineWidth', 3, ...
+    'Color', cc(i,:));
+end
+hold off;
+set(ax_clustered_ps, 'Layer', 'Top');
+xlabel(ax_clustered_ps, 'E (eV)', 'FontSize', 12);
+ylabel(ax_clustered_ps, 'dI/dV (au)', 'FontSize', 12);
+title(ax_clustered_ps, 'Cluster Spectra', 'fontsize', 14);
+axis tight;
+box on;
+grid on;
+
+ax_clustered_region = subplot(1,2,2);
+surf(S.X, S.Y, S.Z, idx_img, 'LineStyle', 'none');
+pbaspect([1 1 1])
+box on;
+colormap(ax_clustered_region, cc);
+colorbar();
+xlabel(ax_clustered_region, 'X (nm)', 'FontSize', 12);
+ylabel(ax_clustered_region, 'Y (nm)', 'FontSize', 12);
+zlabel(ax_clustered_region, 'Z (nm)', 'FontSize', 12);
+title(ax_clustered_region, 'Cluster region', 'fontsize', 14);
+end
+
+function [] = plot_qcut(varargin)
+% Callback for menu: Plot Distribution
+S = varargin{3};
+fig = figure;
+ax = axes;
+
+hp = plot(S.qx, squeeze(S.LS_fft(:,175)));
 end

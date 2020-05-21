@@ -14,6 +14,11 @@ LS_ch_no = chs(cellfun(@(x) strcmp(x, 'LIX 1 omega (A)')...
     |strcmp(x, 'Input 2 [AVG] (V)'),header.channels));
 LS = squeeze(DATA(:,:,:,LS_ch_no));
 
+LS_op_ch_no = chs(cellfun(@(x) strcmp(x, 'LIY 1 omega (A)')...
+    |strcmp(x, 'LIY 1 omega [AVG] (A)')...
+    |strcmp(x, 'Input 3 [AVG] (V)'),header.channels));
+LS_Y = squeeze(DATA(:,:,:,LS_op_ch_no));
+
 % Current channel
 I_ch_no = chs(cellfun(@(x) strcmp(x, 'Current (A)')...
     |strcmp(x, 'Current [AVG] (A)'),header.channels));
@@ -23,7 +28,7 @@ I = squeeze(DATA(:,:,:,I_ch_no));
 [LS, I] = remove_bad_sweeps(DATA, 2);
 
 %% Fix data scale
-LS = LS.*1e9;
+LS = LS.*1e12;
 I = I.*1e9;
 X = X*1e9;                      
 Y = Y*1e9;
@@ -36,7 +41,7 @@ Z = Z*1e9;
 % LS = LS*scale/dV;
 
 %% Select lines
-lines_selected = [1 3 4 5 7 8];
+lines_selected = 1:7;
 LS = LS(lines_selected,:,:);
 I = I(lines_selected,:,:);
 Z = Z(lines_selected,:);
@@ -56,7 +61,8 @@ X = X./1.1715;
 [Z, LS] = drift_correct(Z, LS);
 
 %% Plot Topography 
-plot_topography(X,Y,diff(Z,1,2));
+% plot_topography(X,Y,diff(Z,1,2));
+plot_topography(X,Y,Z);
 
 %% Data Analysis Each Energy SLice
 browse_fft_slider(X,Y,V,LS,I,Z);

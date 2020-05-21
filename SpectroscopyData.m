@@ -7,6 +7,7 @@ classdef SpectroscopyData < handle
         Z;
         V;
         LS;
+        LS_com;
         LS_realspace;
         qx;
         qy
@@ -34,6 +35,9 @@ classdef SpectroscopyData < handle
         reset_button;
         roi_imrect_handle;
         data;
+        energy_q_axes_phase;
+        energy_q_im_phase;
+        LS_fft_phase;
     end
     methods
         
